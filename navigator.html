@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nav</title>
+<style>
+:root {
+  --bg: #111318;
+  --surface: #1a1d24;
+  --border: #2a2d35;
+  --text: #d4d4d8;
+  --text-dim: #6b7080;
+  --accent: #e53e3e;
+  --accent-bg: rgba(229,62,62,0.12);
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --orange: #f59e0b;
+  --purple: #a78bfa;
+  --mono: 'Menlo', 'SF Mono', 'Consolas', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:14px}
+
+/* ─── MAP ─── */
+.map-wrap{padding:8px 10px 120px 10px}
+.bldg{background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.bldg-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
+.bldg-name{font-size:13px;font-weight:700;color:var(--text-dim);letter-spacing:0.5px}
+.bldg-body{padding:6px 8px}
+.row-lane{display:flex;align-items:center;margin-bottom:4px;min-height:28px;position:relative}
+.row-label{position:absolute;right:4px;font-size:9px;color:var(--text-dim);font-weight:700;font-family:var(--mono);width:24px;text-align:right}
+.row-side{display:flex;gap:var(--tool-gap, 3px);flex-wrap:nowrap;padding-right:30px;align-items:flex-end}
+.row-side.bottom-side{align-items:flex-start;border-top:1px dashed var(--border);padding-top:3px;margin-top:1px}
+.tool-cell{display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0}
+.tool-id-label{font-size:var(--tool-label-size, 7px);font-family:var(--mono);color:var(--text-dim);white-space:nowrap;text-align:center;line-height:1.1;margin-bottom:1px}
+.tool-square{width:var(--tool-square-size, 20px);height:var(--tool-square-size, 20px);background:var(--accent);border-radius:2px;flex-shrink:0;transition:all 0.1s;border:1px solid rgba(229,62,62,0.4)}
+.tool-square:active{transform:scale(0.85);background:#c53030}
+.tool-square.selected{box-shadow:0 0 0 2px #fff;background:#c53030}
+.tool-spacer{width:16px;flex-shrink:0}
+
+/* ─── OVERLAY + BOTTOM SHEET ─── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.overlay.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;bottom:0;left:0;right:0;z-index:210;background:var(--surface);border-top:1px solid var(--border);border-radius:14px 14px 0 0;transform:translateY(100%);transition:transform 0.25s ease;padding:0 14px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.sheet.show{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 10px}
+.sheet-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sheet-title{font-size:14px;font-family:var(--mono);font-weight:700;color:var(--text)}
+.sheet-close{width:32px;height:32px;background:var(--border);border:none;border-radius:50%;color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sheet-section-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:4px}
+.chamber-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.chamber-btn{flex-shrink:0;min-width:72px;padding:10px 8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;color:var(--text)}
+.chamber-btn:active{background:var(--border)}
+.chamber-btn-id{font-size:10px;font-family:var(--mono);font-weight:700}
+.chamber-btn-type{font-size:9px;color:var(--text-dim);margin-top:2px}
+.chamber-btn.frame-btn-link{border-color:var(--blue);background:rgba(59,130,246,0.08)}
+.template-row{display:flex;gap:6px;margin-top:8px;margin-bottom:4px}
+.tpl-btn{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;font-weight:700;text-align:center;cursor:pointer;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.tpl-btn:active{opacity:0.7}
+.tpl-btn .tpl-icon{font-size:14px}
+.tpl-btn.t-trbl{border-color:rgba(229,62,62,0.4);color:var(--accent)}
+.tpl-btn.t-pm{border-color:rgba(167,139,250,0.4);color:var(--purple)}
+.tpl-btn.t-learn{border-color:rgba(59,130,246,0.4);color:var(--blue)}
+.tpl-btn.copied{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important}
+
+/* ─── QUICK COPY BAR (fixed bottom on map) ─── */
+.quick-bar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--surface);border-top:1px solid var(--border);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:8px}
+.quick-btn{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:700;text-align:center;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;gap:4px}
+.quick-btn:active{opacity:0.7}
+.quick-btn.q-trbl{color:var(--accent);border-color:rgba(229,62,62,0.3)}
+.quick-btn.q-pm{color:var(--purple);border-color:rgba(167,139,250,0.3)}
+.quick-btn.q-learn{color:var(--blue);border-color:rgba(59,130,246,0.3)}
+.quick-btn.copied{background:var(--green)!important;border-color:var(--green)!important;color:#fff!important}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;top:40px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:999;background:var(--green);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:700;transition:transform 0.25s ease;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ─── DESKTOP EDIT MODE ─── */
+.edit-panel{display:none}
+@media(min-width:700px){
+  .edit-panel{display:block;position:fixed;top:0;right:0;width:360px;height:100vh;background:var(--surface);border-left:1px solid var(--border);overflow-y:auto;padding:16px;z-index:300}
+  .map-wrap{margin-right:370px}
+  .quick-bar{right:370px}
+  .edit-panel h2{font-size:16px;margin-bottom:12px}
+  .edit-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .edit-label{font-size:11px;color:var(--text-dim);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;display:block}
+  .edit-input{width:100%;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--mono);margin-bottom:8px}
+  .edit-input:focus{outline:none;border-color:var(--blue)}
+  .edit-btn{padding:8px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;font-weight:600;cursor:pointer;margin-right:6px;margin-bottom:6px}
+  .edit-btn:hover{background:var(--border)}
+  .edit-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .edit-btn.danger{background:var(--accent);border-color:var(--accent);color:#fff}
+  .edit-tool-list{max-height:200px;overflow-y:auto;margin-bottom:8px}
+  .edit-tool-item{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono)}
+  .edit-tool-item button{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;font-weight:700}
+  .edit-chamber-item{display:flex;gap:4px;align-items:center;margin-bottom:4px;font-size:11px}
+  .edit-chamber-item input{flex:1}
+  .edit-link-item{margin-bottom:6px}
+  .edit-link-label{font-size:10px;color:var(--text-dim);font-family:var(--mono)}
+  .mobile-only{display:none!important}
+}
+@media(max-width:699px){
+  .desktop-only{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- BOTTOM SHEET -->
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="sheet-title">TOOL ID</div>
+    <button class="sheet-close" onclick="closeSheet()">✕</button>
+  </div>
+  <div class="sheet-section-label">Frame & Chambers → OneNote</div>
+  <div class="chamber-row" id="chamber-row"></div>
+  <div class="sheet-section-label" style="margin-top:10px">Copy Entry Template</div>
+  <div class="template-row">
+    <button class="tpl-btn t-trbl" onclick="copyTemplate('trbl',currentToolId)"><span class="tpl-icon">⚡</span>Troubleshoot</button>
+    <button class="tpl-btn t-pm" onclick="copyTemplate('pm',currentToolId)"><span class="tpl-icon">🔧</span>PM</button>
+    <button class="tpl-btn t-learn" onclick="copyTemplate('learn',currentToolId)"><span class="tpl-icon">💡</span>Learned</button>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="map-wrap" id="map-wrap"></div>
+
+<!-- QUICK COPY BAR -->
+<div class="quick-bar" id="quick-bar">
+  <button class="quick-btn q-trbl" onclick="copyTemplate('trbl','')">⚡ Troubleshoot</button>
+  <button class="quick-btn q-pm" onclick="copyTemplate('pm','')">🔧 PM</button>
+  <button class="quick-btn q-learn" onclick="copyTemplate('learn','')">💡 Learned</button>
+</div>
+
+<!-- DESKTOP EDIT PANEL -->
+<div class="edit-panel desktop-only" id="edit-panel">
+  <h2>⚙ Edit Mode</h2>
+  <p style="font-size:11px;color:var(--text-dim);margin-bottom:12px">Changes save to browser storage. Upload this file to OneDrive after editing here.</p>
+
+  <!-- Display settings -->
+  <div class="edit-section">
+    <label class="edit-label">Display Settings</label>
+    <div style="margin-bottom:8px">
+      <label style="font-size:11px;color:var(--text-dim)">Tool Label Size: <span id="label-size-val">7</span>px</label>
+      <input type="range" min="5" max="12" step="1" value="7" id="setting-label-size" oninput="updateDisplay()" style="width:100%">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:11px;color:var(--text-dim)">Tool Square Size: <span id="square-size-val">20</span>px</label>
+      <input type="range" min="12" max="36" step="2" value="20" id="setting-square-size" oninput="updateDisplay()" style="width:100%">
+    </div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:11px;color:var(--text-dim)">Tool Spacing: <span id="gap-size-val">3</span>px</label>
+      <input type="range" min="1" max="10" step="1" value="3" id="setting-gap-size" oninput="updateDisplay()" style="width:100%">
+    </div>
+    <button class="edit-btn" onclick="resetDisplay()">Reset to Default</button>
+  </div>
+
+  <!-- Building management -->
+  <div class="edit-section">
+    <label class="edit-label">Buildings</label>
+    <div id="edit-building-list"></div>
+    <div style="display:flex;gap:4px;margin-top:6px">
+      <input class="edit-input" id="new-bldg-name" placeholder="Building name (e.g. 240)" style="margin:0;flex:1">
+      <button class="edit-btn primary" onclick="addBuilding()">Add</button>
+    </div>
+  </div>
+
+  <!-- Tool management -->
+  <div class="edit-section">
+    <label class="edit-label">Add / Edit Tool</label>
+    <select class="edit-input" id="edit-tool-bldg"><option value="">Select building...</option></select>
+    <input class="edit-input" id="edit-tool-id" placeholder="Tool ID (e.g. CCVE611200)">
+    <input class="edit-input" id="edit-tool-row" placeholder="Row number (e.g. 24)">
+    <select class="edit-input" id="edit-tool-side">
+      <option value="top">Top side of row</option>
+      <option value="bottom">Bottom side of row</option>
+    </select>
+    <input class="edit-input" id="edit-tool-frametype" placeholder="Frame type (e.g. Mach IV)">
+    <input class="edit-input" id="edit-tool-framelink" placeholder="OneNote link for frame (paste here)">
+    <label class="edit-label" style="margin-top:8px">Chambers (one per line: ID, Type, OneNote Link)</label>
+    <textarea class="edit-input" id="edit-tool-chambers" rows="4" placeholder="CCVE611210, TEOS, onenote:https://...&#10;CCVE611220, Striker Oxide, onenote:https://...&#10;CCVE611230, Silane, onenote:https://..."></textarea>
+    <div style="display:flex;gap:4px">
+      <button class="edit-btn primary" onclick="saveTool()">Save Tool</button>
+      <button class="edit-btn" onclick="clearEditForm()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Tool list -->
+  <div class="edit-section">
+    <label class="edit-label">All Tools</label>
+    <div class="edit-tool-list" id="edit-tool-list"></div>
+  </div>
+
+  <!-- Data management -->
+  <div class="edit-section">
+    <label class="edit-label">Data</label>
+    <button class="edit-btn" onclick="exportData()">Export JSON</button>
+    <button class="edit-btn" onclick="document.getElementById('import-file').click()">Import JSON</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="edit-btn danger" onclick="if(confirm('Delete ALL data?')){localStorage.removeItem('pcvd_data');location.reload()}">Reset All</button>
+  </div>
+</div>
+
+<script>
+// ─── DATA ───
+const STORAGE_KEY = 'pcvd_data';
+let DATA = loadData();
+let currentToolId = null;
+
+function getDefaultData() {
+  return { buildings: [], tools: {} };
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return getDefaultData();
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+}
+
+// ─── TEMPLATES ───
+function getTimestamp() {
+  const d = new Date();
+  const date = d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'});
+  const time = d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  return `${date} ${time}`;
+}
+
+function copyTemplate(type, toolId) {
+  const ts = getTimestamp();
+  const toolLine = toolId ? `Tool: ${toolId}\n` : '';
+  let tpl = '';
+
+  if (type === 'trbl') {
+    tpl = `── TROUBLESHOOT ── ${ts} ──\n${toolLine}Concern: \nSymptoms: \nActions Taken: \nResolution: \nLesson: \n──────────────────────────`;
+  } else if (type === 'pm') {
+    tpl = `── PM ── ${ts} ──\n${toolLine}PM Type: \nObservations: \nIssues Found: \nNotes: \n──────────────────────────`;
+  } else {
+    tpl = `── LEARNED ── ${ts} ──\n${toolLine}Topic: \nKey Takeaway: \nDetails: \n──────────────────────────`;
+  }
+
+  navigator.clipboard.writeText(tpl).then(() => {
+    showToast('Copied — paste in OneNote');
+    // Flash the button
+    const btns = document.querySelectorAll(`.tpl-btn.t-${type}, .quick-btn.q-${type}`);
+    btns.forEach(b => {
+      b.classList.add('copied');
+      setTimeout(() => b.classList.remove('copied'), 1200);
+    });
+  }).catch(() => {
+    showToast('Copy failed — try again');
+  });
+}
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ─── SHEET ───
+function openSheet(toolId) {
+  currentToolId = toolId;
+  const tool = DATA.tools[toolId];
+  if (!tool) return;
+
+  document.getElementById('sheet-title').textContent = toolId;
+
+  const row = document.getElementById('chamber-row');
+  row.innerHTML = '';
+
+  // Frame button
+  const fb = document.createElement('div');
+  fb.className = 'chamber-btn frame-btn-link';
+  fb.innerHTML = `<div class="chamber-btn-id">FRAME</div><div class="chamber-btn-type">${tool.frameType || 'Notes'}</div>`;
+  fb.onclick = () => openLink(tool.frameLink);
+  row.appendChild(fb);
+
+  // Chamber buttons
+  (tool.chambers || []).forEach(ch => {
+    const cb = document.createElement('div');
+    cb.className = 'chamber-btn';
+    cb.innerHTML = `<div class="chamber-btn-id">${shortId(ch.id)}</div><div class="chamber-btn-type">${ch.type || ''}</div>`;
+    cb.onclick = () => openLink(ch.link);
+    row.appendChild(cb);
+  });
+
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  currentToolId = null;
+  // Deselect tool
+  document.querySelectorAll('.tool-square.selected').forEach(s => s.classList.remove('selected'));
+}
+
+function openLink(link) {
+  if (!link) {
+    showToast('No OneNote link set — edit on desktop');
+    return;
+  }
+  window.open(link, '_blank');
+}
+
+function shortId(id) {
+  if (!id) return '?';
+  if (id.length > 6) return id.slice(-4);
+  return id;
+}
+
+// ─── RENDER MAP ───
+function renderMap() {
+  const wrap = document.getElementById('map-wrap');
+  wrap.innerHTML = '';
+
+  if (DATA.buildings.length === 0) {
+    wrap.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--text-dim)">
+      <div style="font-size:24px;margin-bottom:8px">⊞</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">No tools yet</div>
+      <div style="font-size:12px">Open this file on your laptop to add buildings and tools in Edit Mode.</div>
+    </div>`;
+    return;
+  }
+
+  DATA.buildings.forEach(bldg => {
+    const el = document.createElement('div');
+    el.className = 'bldg';
+
+    // Group tools by row
+    const rowMap = {};
+    Object.entries(DATA.tools).forEach(([id, tool]) => {
+      if (tool.building !== bldg.name) return;
+      const r = tool.row || '0';
+      if (!rowMap[r]) rowMap[r] = { top: [], bottom: [] };
+      const side = tool.side || 'top';
+      rowMap[r][side].push(id);
+    });
+
+    // Sort rows
+    const rowNums = Object.keys(rowMap).sort((a,b) => {
+      const na = parseInt(a)||0, nb = parseInt(b)||0;
+      return na - nb;
+    });
+
+    let rowsHtml = '';
+    rowNums.forEach(rn => {
+      const rd = rowMap[rn];
+      // Top side
+      if (rd.top.length > 0) {
+        rowsHtml += `<div class="row-lane">
+          <div class="row-side">${rd.top.map(id => toolCell(id)).join('')}</div>
+          ${rd.bottom.length === 0 ? `<div class="row-label">${rn !== '0' ? rn : ''}</div>` : ''}
+        </div>`;
+      }
+      // Bottom side
+      if (rd.bottom.length > 0) {
+        rowsHtml += `<div class="row-lane">
+          <div class="row-side bottom-side">${rd.bottom.map(id => toolCell(id)).join('')}</div>
+          <div class="row-label">${rn !== '0' ? rn : ''}</div>
+        </div>`;
+      }
+      // If only top, row label already added
+      if (rd.top.length > 0 && rd.bottom.length > 0) {
+        // Add label to the top row retroactively — handled by absolute positioning
+      }
+    });
+
+    el.innerHTML = `
+      <div class="bldg-header"><span class="bldg-name">${bldg.name}</span><span style="font-size:10px;color:var(--text-dim)">${Object.values(DATA.tools).filter(t=>t.building===bldg.name).length} tools</span></div>
+      <div class="bldg-body">${rowsHtml || '<div style="padding:8px;font-size:11px;color:var(--text-dim)">No tools in this building</div>'}</div>
+    `;
+    wrap.appendChild(el);
+  });
+}
+
+function toolCell(id) {
+  return `<div class="tool-cell" onclick="selectTool('${id}', this)">
+    <div class="tool-id-label" title="${id}">${id}</div>
+    <div class="tool-square" id="sq-${id}"></div>
+  </div>`;
+}
+
+function selectTool(id, el) {
+  document.querySelectorAll('.tool-square.selected').forEach(s => s.classList.remove('selected'));
+  const sq = el.querySelector('.tool-square');
+  if (sq) sq.classList.add('selected');
+  openSheet(id);
+}
+
+// ─── DESKTOP EDIT FUNCTIONS ───
+function refreshEditPanel() {
+  // Building list
+  const bl = document.getElementById('edit-building-list');
+  bl.innerHTML = DATA.buildings.map((b,i) => 
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px">
+      <span>${b.name}</span>
+      <button class="edit-btn danger" style="padding:2px 8px;font-size:10px" onclick="removeBuilding(${i})">Remove</button>
+    </div>`
+  ).join('');
+
+  // Building select in tool form
+  const sel = document.getElementById('edit-tool-bldg');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select building...</option>' + 
+    DATA.buildings.map(b => `<option value="${b.name}"${b.name===current?' selected':''}>${b.name}</option>`).join('');
+
+  // Tool list
+  const tl = document.getElementById('edit-tool-list');
+  const toolIds = Object.keys(DATA.tools).sort();
+  tl.innerHTML = toolIds.map(id => {
+    const t = DATA.tools[id];
+    return `<div class="edit-tool-item">
+      <span>${id} <span style="color:var(--text-dim)">(${t.building} R${t.row} ${t.frameType||''})</span></span>
+      <span>
+        <button onclick="editTool('${id}')" style="color:var(--blue);margin-right:6px">Edit</button>
+        <button onclick="removeTool('${id}')">Del</button>
+      </span>
+    </div>`;
+  }).join('') || '<div style="padding:8px;font-size:11px;color:var(--text-dim)">No tools added yet</div>';
+}
+
+function addBuilding() {
+  const name = document.getElementById('new-bldg-name').value.trim();
+  if (!name) return;
+  if (DATA.buildings.some(b => b.name === name)) { showToast('Building already exists'); return; }
+  DATA.buildings.push({ name });
+  document.getElementById('new-bldg-name').value = '';
+  saveData(); renderMap(); refreshEditPanel();
+}
+
+function removeBuilding(i) {
+  const name = DATA.buildings[i].name;
+  if (!confirm(`Remove building ${name}? Tools in it will remain in data.`)) return;
+  DATA.buildings.splice(i, 1);
+  saveData(); renderMap(); refreshEditPanel();
+}
+
+function saveTool() {
+  const bldg = document.getElementById('edit-tool-bldg').value;
+  const id = document.getElementById('edit-tool-id').value.trim().toUpperCase();
+  const row = document.getElementById('edit-tool-row').value.trim();
+  const side = document.getElementById('edit-tool-side').value;
+  const frameType = document.getElementById('edit-tool-frametype').value.trim();
+  const frameLink = document.getElementById('edit-tool-framelink').value.trim();
+  const chambersRaw = document.getElementById('edit-tool-chambers').value.trim();
+
+  if (!id) { showToast('Tool ID required'); return; }
+  if (!bldg) { showToast('Select a building'); return; }
+
+  const chambers = [];
+  if (chambersRaw) {
+    chambersRaw.split('\n').forEach(line => {
+      const parts = line.split(',').map(s => s.trim());
+      if (parts.length >= 1 && parts[0]) {
+        chambers.push({
+          id: parts[0].toUpperCase(),
+          type: parts[1] || '',
+          link: parts[2] || ''
+        });
+      }
+    });
+  }
+
+  DATA.tools[id] = {
+    building: bldg,
+    row: row,
+    side: side,
+    frameType: frameType,
+    frameLink: frameLink,
+    chambers: chambers
+  };
+
+  saveData(); renderMap(); refreshEditPanel(); clearEditForm();
+  showToast(`Saved ${id}`);
+}
+
+function editTool(id) {
+  const t = DATA.tools[id];
+  if (!t) return;
+  document.getElementById('edit-tool-bldg').value = t.building || '';
+  document.getElementById('edit-tool-id').value = id;
+  document.getElementById('edit-tool-row').value = t.row || '';
+  document.getElementById('edit-tool-side').value = t.side || 'top';
+  document.getElementById('edit-tool-frametype').value = t.frameType || '';
+  document.getElementById('edit-tool-framelink').value = t.frameLink || '';
+  document.getElementById('edit-tool-chambers').value = (t.chambers || []).map(c => 
+    `${c.id}, ${c.type}, ${c.link}`
+  ).join('\n');
+  document.getElementById('edit-tool-id').scrollIntoView({ behavior: 'smooth' });
+}
+
+function removeTool(id) {
+  if (!confirm(`Delete ${id}?`)) return;
+  delete DATA.tools[id];
+  saveData(); renderMap(); refreshEditPanel();
+}
+
+function clearEditForm() {
+  ['edit-tool-id','edit-tool-row','edit-tool-frametype','edit-tool-framelink','edit-tool-chambers'].forEach(x => document.getElementById(x).value = '');
+  document.getElementById('edit-tool-bldg').value = '';
+  document.getElementById('edit-tool-side').value = 'top';
+}
+
+function exportData() {
+  const exportObj = { ...DATA, display: loadDisplaySettings() };
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'pcvd-data.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (imported.buildings && imported.tools) {
+        if (imported.display) {
+          saveDisplaySettings(imported.display);
+          applyDisplay(imported.display);
+        }
+        DATA = { buildings: imported.buildings, tools: imported.tools };
+        saveData(); renderMap(); refreshEditPanel();
+        showToast('Data imported');
+      } else {
+        showToast('Invalid format');
+      }
+    } catch(err) {
+      showToast('Import failed');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ─── DISPLAY SETTINGS ───
+const DISPLAY_KEY = 'pcvd_display';
+
+function loadDisplaySettings() {
+  try {
+    const raw = localStorage.getItem(DISPLAY_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  return { labelSize: 7, squareSize: 20, gapSize: 3 };
+}
+
+function saveDisplaySettings(settings) {
+  localStorage.setItem(DISPLAY_KEY, JSON.stringify(settings));
+}
+
+function applyDisplay(settings) {
+  document.documentElement.style.setProperty('--tool-label-size', settings.labelSize + 'px');
+  document.documentElement.style.setProperty('--tool-square-size', settings.squareSize + 'px');
+  document.documentElement.style.setProperty('--tool-gap', settings.gapSize + 'px');
+  // Update slider values if on desktop
+  const ls = document.getElementById('setting-label-size');
+  const ss = document.getElementById('setting-square-size');
+  const gs = document.getElementById('setting-gap-size');
+  if (ls) { ls.value = settings.labelSize; document.getElementById('label-size-val').textContent = settings.labelSize; }
+  if (ss) { ss.value = settings.squareSize; document.getElementById('square-size-val').textContent = settings.squareSize; }
+  if (gs) { gs.value = settings.gapSize; document.getElementById('gap-size-val').textContent = settings.gapSize; }
+}
+
+function updateDisplay() {
+  const settings = {
+    labelSize: parseInt(document.getElementById('setting-label-size').value),
+    squareSize: parseInt(document.getElementById('setting-square-size').value),
+    gapSize: parseInt(document.getElementById('setting-gap-size').value)
+  };
+  document.getElementById('label-size-val').textContent = settings.labelSize;
+  document.getElementById('square-size-val').textContent = settings.squareSize;
+  document.getElementById('gap-size-val').textContent = settings.gapSize;
+  applyDisplay(settings);
+  saveDisplaySettings(settings);
+}
+
+function resetDisplay() {
+  const defaults = { labelSize: 7, squareSize: 20, gapSize: 3 };
+  applyDisplay(defaults);
+  saveDisplaySettings(defaults);
+}
+
+// ─── INIT ───
+applyDisplay(loadDisplaySettings());
+renderMap();
+refreshEditPanel();
+</script>
+</body>
+</html>
