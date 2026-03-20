@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="color-scheme" content="dark">
+<title>Tool Nav</title>
+<style>
+:root {
+  --bg: #111318;
+  --surface: #1a1d24;
+  --border: #2a2d35;
+  --text: #d4d4d8;
+  --dim: #6b7080;
+  --accent: #e53e3e;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --purple: #a78bfa;
+  --mono: 'Menlo','SF Mono','Consolas',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+input,select,textarea,button{-webkit-appearance:none;appearance:none;color-scheme:dark;font-family:inherit}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:14px;color-scheme:dark}
+
+/* ─── SCREENS ─── */
+.screen{display:none}.screen.active{display:block}
+
+/* ─── HEADER ─── */
+.hdr{position:sticky;top:0;z-index:100;background:var(–bg);border-bottom:1px solid var(–border);padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.hdr-title{font-size:15px;font-weight:700}
+.hdr-btn{background:var(–surface);border:1px solid var(–border);color:var(–text);font-size:13px;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600;min-height:36px}
+.hdr-btn:active{opacity:0.7}
+
+/* ─── MAP ─── */
+.map-wrap{padding:8px 10px 80px 10px}
+.bldg{background:var(–surface);border:1px solid var(–border);border-radius:6px;margin-bottom:8px;overflow:hidden}
+.bldg-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid var(–border);background:rgba(255,255,255,0.02)}
+.bldg-name{font-size:13px;font-weight:700;color:var(–dim);letter-spacing:0.5px}
+.bldg-body{padding:6px 8px}
+.row-lane{display:flex;align-items:center;margin-bottom:4px;min-height:28px;position:relative}
+.row-label{position:absolute;right:4px;font-size:9px;color:var(–dim);font-weight:700;font-family:var(–mono);width:24px;text-align:right}
+.row-side{display:flex;gap:8px;flex-wrap:nowrap;padding-right:30px;align-items:flex-end}
+.row-side.bottom-side{align-items:flex-start;border-top:1px dashed var(–border);padding-top:3px;margin-top:1px}
+.tool-cell{display:flex;flex-direction:column;align-items:center;cursor:pointer;min-width:0}
+.tool-id-label{font-size:9px;font-family:var(–mono);color:var(–dim);white-space:nowrap;text-align:center;line-height:1.1;margin-bottom:1px}
+.tool-square{width:28px;height:28px;background:var(–accent);border-radius:2px;flex-shrink:0;transition:all 0.1s;border:1px solid rgba(229,62,62,0.4)}
+.tool-square:active{transform:scale(0.85);background:#c53030}
+.tool-square.selected{box-shadow:0 0 0 2px #fff;background:#c53030}
+.empty-msg{text-align:center;padding:40px 20px;color:var(–dim)}
+.empty-msg .big{font-size:24px;margin-bottom:8px}
+.empty-msg .t1{font-size:14px;font-weight:600;margin-bottom:4px}
+.empty-msg .t2{font-size:12px}
+
+/* ─── OVERLAY + SHEET ─── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.overlay.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;bottom:0;left:0;right:0;z-index:210;background:var(–surface);border-top:1px solid var(–border);border-radius:14px 14px 0 0;transform:translateY(100%);transition:transform 0.25s ease;padding:0 14px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.sheet.show{transform:translateY(0)}
+.sheet-handle{width:36px;height:4px;background:var(–border);border-radius:2px;margin:8px auto 10px}
+.sheet-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sheet-title{font-size:14px;font-family:var(–mono);font-weight:700}
+.sheet-type{font-size:11px;color:var(–dim);margin-top:2px}
+.sheet-close{width:32px;height:32px;background:var(–border);border:none;border-radius:50%;color:var(–text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.slbl{font-size:10px;font-weight:700;color:var(–dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;margin-top:4px}
+.ch-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.ch-btn{flex-shrink:0;min-width:72px;padding:10px 8px;background:var(–bg);border:1px solid var(–border);border-radius:8px;text-align:center;cursor:pointer;color:var(–text);min-height:48px}
+.ch-btn:active{background:var(–border)}
+.ch-btn-id{font-size:10px;font-family:var(–mono);font-weight:700}
+.ch-btn-type{font-size:9px;color:var(–dim);margin-top:2px}
+.ch-btn.frame{border-color:var(–blue);background:rgba(59,130,246,0.08)}
+.tpl-row{display:flex;gap:6px;margin-top:8px;margin-bottom:4px}
+.tpl{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(–border);background:var(–bg);font-size:11px;font-weight:700;text-align:center;cursor:pointer;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(–text)}
+.tpl:active{opacity:0.7}
+.tpl .ico{font-size:14px}
+.tpl.t-trbl{border-color:rgba(229,62,62,0.4);color:var(–accent)}
+.tpl.t-pm{border-color:rgba(167,139,250,0.4);color:var(–purple)}
+.tpl.t-learn{border-color:rgba(59,130,246,0.4);color:var(–blue)}
+.tpl.copied,.qb.copied{background:var(–green)!important;border-color:var(–green)!important;color:#fff!important}
+
+/* ─── QUICK BAR ─── */
+.qbar{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(–surface);border-top:1px solid var(–border);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:8px}
+.qb{flex:1;padding:10px 4px;border-radius:8px;border:1px solid var(–border);background:var(–bg);font-size:11px;font-weight:700;text-align:center;cursor:pointer;min-height:44px;display:flex;align-items:center;justify-content:center;gap:4px}
+.qb:active{opacity:0.7}
+.qb.q-trbl{color:var(–accent);border-color:rgba(229,62,62,0.3)}
+.qb.q-pm{color:var(–purple);border-color:rgba(167,139,250,0.3)}
+.qb.q-learn{color:var(–blue);border-color:rgba(59,130,246,0.3)}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;top:40px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:999;background:var(–green);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:700;transition:transform 0.25s ease;pointer-events:none;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ─── EDIT SCREEN ─── */
+.edit-wrap{padding:12px;padding-bottom:100px}
+.ecard{background:var(–surface);border:1px solid var(–border);border-radius:8px;padding:12px;margin-bottom:10px}
+.ecard-title{font-size:12px;font-weight:700;color:var(–dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
+.einp{width:100%;padding:10px;background:var(–bg);border:1px solid var(–border);border-radius:8px;color:var(–text);font-size:15px;font-family:var(–mono);margin-bottom:8px;min-height:44px;-webkit-appearance:none;appearance:none;color-scheme:dark}
+.einp:focus{outline:none;border-color:var(–blue)}
+.esel{width:100%;padding:10px;background:var(–bg);border:1px solid var(–border);border-radius:8px;color:var(–text);font-size:15px;margin-bottom:8px;min-height:44px;-webkit-appearance:none;appearance:none;color-scheme:dark}
+.ebtn{padding:10px 16px;border-radius:8px;border:1px solid var(–border);background:var(–bg);color:var(–text);font-size:14px;font-weight:600;cursor:pointer;min-height:44px;-webkit-appearance:none;appearance:none}
+.ebtn:active{opacity:0.7}
+.ebtn.primary{background:var(–blue);border-color:var(–blue);color:#fff}
+.ebtn.danger{background:var(–accent);border-color:var(–accent);color:#fff}
+.ebtn.full{width:100%;text-align:center}
+.elist{max-height:300px;overflow-y:auto}
+.eitem{display:flex;justify-content:space-between;align-items:center;padding:10px 8px;border-bottom:1px solid var(–border);min-height:44px}
+.eitem-id{font-size:12px;font-family:var(–mono);font-weight:600}
+.eitem-sub{font-size:10px;color:var(–dim)}
+.eitem-actions{display:flex;gap:8px}
+.eitem-actions button{background:none;border:none;font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px;min-width:44px;min-height:32px}
+.eitem-actions .ed{color:var(–blue)}
+.eitem-actions .del{color:var(–accent)}
+
+/* ─── DISPLAY SETTINGS ─── */
+.slider-row{margin-bottom:8px}
+.slider-label{font-size:12px;color:var(–dim);margin-bottom:2px;display:flex;justify-content:space-between}
+.slider-row input[type=range]{width:100%;margin-top:2px}
+</style>
+
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+<style id="dyn"></style>
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<!-- BOTTOM SHEET -->
+
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-hdr">
+    <div><div class="sheet-title" id="sh-title">TOOL</div><div class="sheet-type" id="sh-type"></div></div>
+    <button class="sheet-close" onclick="closeSheet()">✕</button>
+  </div>
+  <div class="slbl">Frame & Chambers → OneNote</div>
+  <div class="ch-row" id="ch-row"></div>
+  <div class="slbl" style="margin-top:10px">Copy Entry Template</div>
+  <div class="tpl-row">
+    <button class="tpl t-trbl" onclick="copyTpl('trbl')"><span class="ico">⚡</span>Troubleshoot</button>
+    <button class="tpl t-pm" onclick="copyTpl('pm')"><span class="ico">🔧</span>PM</button>
+    <button class="tpl t-learn" onclick="copyTpl('learn')"><span class="ico">💡</span>Learned</button>
+  </div>
+</div>
+
+<!-- ═══ MAP SCREEN ═══ -->
+
+<div id="scr-map" class="screen active">
+  <div class="hdr">
+    <span class="hdr-title">Tool Nav</span>
+    <button class="hdr-btn" onclick="goEdit()">⚙ Edit</button>
+  </div>
+  <div class="map-wrap" id="map-wrap"></div>
+  <div class="qbar">
+    <button class="qb q-trbl" onclick="copyTpl('trbl')">⚡ Troubleshoot</button>
+    <button class="qb q-pm" onclick="copyTpl('pm')">🔧 PM</button>
+    <button class="qb q-learn" onclick="copyTpl('learn')">💡 Learned</button>
+  </div>
+</div>
+
+<!-- ═══ EDIT SCREEN ═══ -->
+
+<div id="scr-edit" class="screen">
+  <div class="hdr">
+    <button class="hdr-btn" onclick="goMap()">← Map</button>
+    <span class="hdr-title">Edit</span>
+    <div style="width:60px"></div>
+  </div>
+  <div class="edit-wrap">
+
+```
+<!-- Display settings -->
+<div class="ecard">
+  <div class="ecard-title">Display</div>
+  <div class="slider-row">
+    <div class="slider-label"><span>Label Size</span><span id="dv-lbl">9px</span></div>
+    <input type="range" min="6" max="16" step="1" value="9" id="ds-lbl" oninput="adjDisplay()">
+  </div>
+  <div class="slider-row">
+    <div class="slider-label"><span>Square Size</span><span id="dv-sq">28px</span></div>
+    <input type="range" min="16" max="48" step="2" value="28" id="ds-sq" oninput="adjDisplay()">
+  </div>
+  <div class="slider-row">
+    <div class="slider-label"><span>Spacing</span><span id="dv-gap">8px</span></div>
+    <input type="range" min="2" max="20" step="1" value="8" id="ds-gap" oninput="adjDisplay()">
+  </div>
+</div>
+
+<!-- Buildings -->
+<div class="ecard">
+  <div class="ecard-title">Buildings</div>
+  <div id="e-bldg-list"></div>
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <input class="einp" id="e-bldg-new" placeholder="Building name" style="margin:0;flex:1">
+    <button class="ebtn primary" onclick="addBldg()" style="white-space:nowrap">+ Add</button>
+  </div>
+</div>
+
+<!-- Add/Edit Tool -->
+<div class="ecard" id="tool-form-card">
+  <div class="ecard-title" id="form-title">Add Tool</div>
+  <select class="esel" id="e-t-bldg"><option value="">Select building...</option></select>
+  <input class="einp" id="e-t-id" placeholder="Tool ID">
+  <input class="einp" id="e-t-row" placeholder="Row number">
+  <select class="esel" id="e-t-side">
+    <option value="top">Top side of row</option>
+    <option value="bottom">Bottom side of row</option>
+  </select>
+  <input class="einp" id="e-t-ftype" placeholder="Frame type">
+  <input class="einp" id="e-t-flink" placeholder="Paste full OneNote link (both URLs ok)">
+  <div style="font-size:11px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px;margin-top:4px">Chambers (one per line: ID, Type, Link)</div>
+  <textarea class="einp" id="e-t-ch" rows="4" placeholder="ID, Type, paste full link&#10;ID, Type, paste full link"></textarea>
+  <div style="display:flex;gap:6px">
+    <button class="ebtn primary" style="flex:1" onclick="saveTool()">Save</button>
+    <button class="ebtn" onclick="clearForm()">Clear</button>
+  </div>
+</div>
+
+<!-- Tool list -->
+<div class="ecard">
+  <div class="ecard-title">All Tools (<span id="tool-count">0</span>)</div>
+  <div class="elist" id="e-t-list"></div>
+</div>
+
+<!-- Data -->
+<div class="ecard">
+  <div class="ecard-title">Data Management</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap">
+    <button class="ebtn" onclick="exportJSON()">Export JSON</button>
+    <button class="ebtn" onclick="document.getElementById('imp-f').click()">Import JSON</button>
+    <input type="file" id="imp-f" accept=".json" style="display:none" onchange="importJSON(event)">
+    <button class="ebtn danger" id="reset-btn" onclick="handleReset()">Reset All</button>
+  </div>
+</div>
+```
+
+  </div>
+</div>
+
+<script>
+// ─── DATA ───
+const K = 'toolnav';
+let D = load();
+let curTool = null;
+
+function load() {
+  try {
+    const r = localStorage.getItem(K);
+    if (r) {
+      const d = JSON.parse(r);
+      if (!d.display) d.display = {labelSize:9,squareSize:28,gapSize:8};
+      // Migrate old tiny defaults
+      if (d.display.labelSize <= 7) d.display.labelSize = 9;
+      if (d.display.squareSize <= 20) d.display.squareSize = 28;
+      if (d.display.gapSize <= 3) d.display.gapSize = 8;
+      if (!d.buildings) d.buildings = [];
+      if (!d.tools) d.tools = {};
+      return d;
+    }
+  } catch(e) {}
+  return { display:{labelSize:9,squareSize:28,gapSize:8}, buildings:[], tools:{} };
+}
+function save() { localStorage.setItem(K, JSON.stringify(D)); }
+
+// ─── SCREENS ───
+function goMap() { 
+  document.getElementById('scr-map').classList.add('active');
+  document.getElementById('scr-edit').classList.remove('active');
+  render();
+}
+function goEdit() {
+  document.getElementById('scr-edit').classList.add('active');
+  document.getElementById('scr-map').classList.remove('active');
+  refreshEdit();
+}
+
+// ─── DISPLAY ───
+function applyDisplay() {
+  const d = D.display;
+  document.getElementById('dyn').textContent =
+    `.tool-id-label{font-size:${d.labelSize}px !important}` +
+    `.tool-square{width:${d.squareSize}px !important;height:${d.squareSize}px !important}` +
+    `.row-side{gap:${d.gapSize}px !important}`;
+}
+function syncSliders() {
+  const d = D.display;
+  const l=document.getElementById('ds-lbl'),s=document.getElementById('ds-sq'),g=document.getElementById('ds-gap');
+  if(l){l.value=d.labelSize;document.getElementById('dv-lbl').textContent=d.labelSize+'px';}
+  if(s){s.value=d.squareSize;document.getElementById('dv-sq').textContent=d.squareSize+'px';}
+  if(g){g.value=d.gapSize;document.getElementById('dv-gap').textContent=d.gapSize+'px';}
+}
+function adjDisplay() {
+  D.display.labelSize=parseInt(document.getElementById('ds-lbl').value);
+  D.display.squareSize=parseInt(document.getElementById('ds-sq').value);
+  D.display.gapSize=parseInt(document.getElementById('ds-gap').value);
+  syncSliders(); applyDisplay(); save();
+}
+
+// ─── TEMPLATES ───
+function getTS(){const d=new Date();return d.toLocaleDateString('en-US',{month:'2-digit',day:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});}
+function copyTpl(type){
+  const ts=getTS(),tid=curTool||'',tl=tid?`Tool: ${tid}\n`:'';
+  let t='';
+  if(type==='trbl')t=`── TROUBLESHOOT ── ${ts} ──\n${tl}Concern: \nSymptoms: \nActions Taken: \nResolution: \nLesson: \n──────────────────────────`;
+  else if(type==='pm')t=`── PM ── ${ts} ──\n${tl}PM Type: \nObservations: \nIssues Found: \nNotes: \n──────────────────────────`;
+  else t=`── LEARNED ── ${ts} ──\n${tl}Topic: \nKey Takeaway: \nDetails: \n──────────────────────────`;
+  navigator.clipboard.writeText(t).then(()=>{
+    showToast('Copied — paste in OneNote');
+    document.querySelectorAll(`.tpl.t-${type},.qb.q-${type}`).forEach(b=>{b.classList.add('copied');setTimeout(()=>b.classList.remove('copied'),1200);});
+  }).catch(()=>showToast('Copy failed'));
+}
+
+// ─── TOAST ───
+let toT;
+function showToast(m){const el=document.getElementById('toast');el.textContent=m;el.classList.add('show');clearTimeout(toT);toT=setTimeout(()=>el.classList.remove('show'),2000);}
+
+// ─── SHEET ───
+function openSheet(id){
+  curTool=id;const t=D.tools[id];if(!t)return;
+  document.getElementById('sh-title').textContent=id;
+  document.getElementById('sh-type').textContent=t.frameType||'';
+  const row=document.getElementById('ch-row');row.innerHTML='';
+  const fb=document.createElement('div');fb.className='ch-btn frame';
+  fb.innerHTML=`<div class="ch-btn-id">FRAME</div><div class="ch-btn-type">${t.frameType||'Notes'}</div>`;
+  fb.onclick=()=>openLink(t.frameLink);row.appendChild(fb);
+  (t.chambers||[]).forEach(ch=>{
+    const cb=document.createElement('div');cb.className='ch-btn';
+    cb.innerHTML=`<div class="ch-btn-id">${ch.id.length>6?ch.id.slice(-4):ch.id}</div><div class="ch-btn-type">${ch.type||''}</div>`;
+    cb.onclick=()=>openLink(ch.link);row.appendChild(cb);
+  });
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sheet').classList.add('show');
+}
+function closeSheet(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sheet').classList.remove('show');
+  curTool=null;
+  document.querySelectorAll('.tool-square.selected').forEach(s=>s.classList.remove('selected'));
+}
+function openLink(lnk){
+  if(!lnk){showToast('No link set — tap ⚙ Edit to add');return;}
+  const parts=lnk.split(' ').filter(s=>s.startsWith('http')||s.startsWith('onenote:'));
+  const oneNote=parts.find(s=>s.startsWith('onenote:'));
+  const web=parts.find(s=>s.startsWith('http'));
+  const url=oneNote||web||lnk;
+  window.open(url);
+}
+
+// ─── RENDER MAP ───
+function render(){
+  const wrap=document.getElementById('map-wrap');wrap.innerHTML='';
+  if(D.buildings.length===0){
+    wrap.innerHTML=`<div class="empty-msg"><div class="big">⊞</div><div class="t1">No tools yet</div><div class="t2">Tap ⚙ Edit to add buildings and tools</div></div>`;
+    return;
+  }
+  D.buildings.forEach(b=>{
+    const el=document.createElement('div');el.className='bldg';
+    const rm={};
+    Object.entries(D.tools).forEach(([id,t])=>{
+      if(t.building!==b.name)return;
+      const r=t.row||'0';if(!rm[r])rm[r]={top:[],bottom:[]};
+      rm[r][t.side||'top'].push(id);
+    });
+    const rows=Object.keys(rm).sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
+    let h='';
+    rows.forEach(rn=>{
+      const rd=rm[rn];
+      if(rd.top.length)h+=`<div class="row-lane"><div class="row-side">${rd.top.map(id=>tc(id)).join('')}</div>${rd.bottom.length===0?`<div class="row-label">${rn!=='0'?rn:''}</div>`:''}</div>`;
+      if(rd.bottom.length)h+=`<div class="row-lane"><div class="row-side bottom-side">${rd.bottom.map(id=>tc(id)).join('')}</div><div class="row-label">${rn!=='0'?rn:''}</div></div>`;
+    });
+    const cnt=Object.values(D.tools).filter(t=>t.building===b.name).length;
+    el.innerHTML=`<div class="bldg-header"><span class="bldg-name">${b.name}</span><span style="font-size:10px;color:var(--dim)">${cnt}</span></div>
+      <div class="bldg-body">${h||'<div style="padding:8px;font-size:11px;color:var(--dim)">Empty</div>'}</div>`;
+    wrap.appendChild(el);
+  });
+}
+function tc(id){
+  return `<div class="tool-cell" onclick="selTool('${id}',this)"><div class="tool-id-label">${id}</div><div class="tool-square"></div></div>`;
+}
+function selTool(id,el){
+  document.querySelectorAll('.tool-square.selected').forEach(s=>s.classList.remove('selected'));
+  el.querySelector('.tool-square').classList.add('selected');
+  openSheet(id);
+}
+
+// ─── EDIT FUNCTIONS ───
+function refreshEdit(){
+  syncSliders();
+  // Buildings
+  const bl=document.getElementById('e-bldg-list');
+  bl.innerHTML=D.buildings.map((b,i)=>
+    `<div class="eitem"><span class="eitem-id">${b.name}</span>
+      <div class="eitem-actions"><button class="del" data-bdel="${i}" onclick="rmBldg(${i})">✕</button></div></div>`
+  ).join('');
+  // Building select
+  const sel=document.getElementById('e-t-bldg');const cv=sel.value;
+  sel.innerHTML='<option value="">Select building...</option>'+D.buildings.map(b=>
+    `<option value="${b.name}"${b.name===cv?' selected':''}>${b.name}</option>`).join('');
+  // Tool list
+  const ids=Object.keys(D.tools).sort();
+  document.getElementById('tool-count').textContent=ids.length;
+  document.getElementById('e-t-list').innerHTML=ids.map(id=>{
+    const t=D.tools[id];
+    return `<div class="eitem"><div><div class="eitem-id">${id}</div><div class="eitem-sub">${t.building} R${t.row} ${t.frameType||''}</div></div>
+      <div class="eitem-actions"><button class="ed" onclick="editTool('${id}')">Edit</button><button class="del" data-del="${id}" onclick="rmTool('${id}')">Del</button></div></div>`;
+  }).join('')||'<div style="padding:12px;font-size:12px;color:var(--dim)">No tools added yet</div>';
+}
+function addBldg(){
+  const n=document.getElementById('e-bldg-new').value.trim();
+  if(!n||D.buildings.some(b=>b.name===n))return;
+  D.buildings.push({name:n});document.getElementById('e-bldg-new').value='';
+  save();refreshEdit();
+}
+let bDelArmed=null;let bDelTimer;
+function rmBldg(i){
+  if(bDelArmed===i){clearTimeout(bDelTimer);bDelArmed=null;D.buildings.splice(i,1);save();refreshEdit();showToast('Building removed');return;}
+  bDelArmed=i;
+  const btn=document.querySelector(`[data-bdel="${i}"]`);
+  if(btn)btn.textContent='Sure?';
+  clearTimeout(bDelTimer);
+  bDelTimer=setTimeout(()=>{bDelArmed=null;refreshEdit();},3000);
+}
+function saveTool(){
+  const bldg=document.getElementById('e-t-bldg').value;
+  const id=document.getElementById('e-t-id').value.trim().toUpperCase();
+  const row=document.getElementById('e-t-row').value.trim();
+  const side=document.getElementById('e-t-side').value;
+  const ftype=document.getElementById('e-t-ftype').value.trim();
+  const flink=document.getElementById('e-t-flink').value.trim();
+  const chRaw=document.getElementById('e-t-ch').value.trim();
+  if(!id){showToast('Tool ID required');return;}
+  if(!bldg){showToast('Select building');return;}
+  const chambers=[];
+  if(chRaw)chRaw.split('\n').forEach(line=>{
+    const first=line.indexOf(',');
+    if(first<0){if(line.trim())chambers.push({id:line.trim().toUpperCase(),type:'',link:''});return;}
+    const second=line.indexOf(',',first+1);
+    if(second<0){
+      chambers.push({id:line.slice(0,first).trim().toUpperCase(),type:line.slice(first+1).trim(),link:''});
+      return;
+    }
+    chambers.push({
+      id:line.slice(0,first).trim().toUpperCase(),
+      type:line.slice(first+1,second).trim(),
+      link:line.slice(second+1).trim()
+    });
+  });
+  D.tools[id]={building:bldg,row,side,frameType:ftype,frameLink:flink,chambers};
+  save();refreshEdit();clearForm();showToast(`Saved ${id}`);
+}
+function editTool(id){
+  const t=D.tools[id];if(!t)return;
+  document.getElementById('form-title').textContent='Edit Tool';
+  document.getElementById('e-t-bldg').value=t.building||'';
+  document.getElementById('e-t-id').value=id;
+  document.getElementById('e-t-row').value=t.row||'';
+  document.getElementById('e-t-side').value=t.side||'top';
+  document.getElementById('e-t-ftype').value=t.frameType||'';
+  document.getElementById('e-t-flink').value=t.frameLink||'';
+  document.getElementById('e-t-ch').value=(t.chambers||[]).map(c=>`${c.id}, ${c.type}, ${c.link}`).join('\n');
+  document.getElementById('tool-form-card').scrollIntoView({behavior:'smooth'});
+}
+let delArmed=null;let delTimer;
+function rmTool(id){
+  if(delArmed===id){clearTimeout(delTimer);delArmed=null;delete D.tools[id];save();refreshEdit();showToast('Deleted '+id);return;}
+  delArmed=id;
+  const btn=document.querySelector(`[data-del="${id}"]`);
+  if(btn)btn.textContent='Sure?';
+  clearTimeout(delTimer);
+  delTimer=setTimeout(()=>{delArmed=null;refreshEdit();},3000);
+}
+function clearForm(){
+  document.getElementById('form-title').textContent='Add Tool';
+  ['e-t-id','e-t-row','e-t-ftype','e-t-flink','e-t-ch'].forEach(x=>document.getElementById(x).value='');
+  document.getElementById('e-t-bldg').value='';document.getElementById('e-t-side').value='top';
+}
+
+// ─── JSON EXPORT/IMPORT ───
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='toolnav-data.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importJSON(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(d.buildings&&d.tools){
+        D.buildings=d.buildings;D.tools=d.tools;
+        if(d.display)D.display=d.display;
+        save();applyDisplay();refreshEdit();showToast('Imported');
+      }else showToast('Invalid format');
+    }catch(err){showToast('Import failed');}
+  };
+  reader.readAsText(file);
+}
+
+// ─── RESET ───
+let resetArmed=false;let resetTimer;
+function handleReset(){
+  if(resetArmed){localStorage.removeItem('toolnav');location.reload();return;}
+  resetArmed=true;
+  document.getElementById('reset-btn').textContent='Tap again to confirm';
+  clearTimeout(resetTimer);
+  resetTimer=setTimeout(()=>{resetArmed=false;document.getElementById('reset-btn').textContent='Reset All';},3000);
+}
+
+// ─── INIT ───
+save(); applyDisplay(); render();
+</script>
+
+</body>
+</html>
